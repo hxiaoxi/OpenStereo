@@ -58,8 +58,13 @@ def worker(rank, world_size, opt, cfgs):
     data_cfg = cfgs['data_cfg']
     trainer_cfg = cfgs['trainer_cfg']
     scope = opt.scope
+    # 假设 model_cfg["model"] 的值是 "PSMNet"
+    # 那么 getattr(models, model_cfg["model"]) 将等同于 getattr(models, "PSMNet")
+    # 即从 models 模块中获取 PSMNet 类
+    # <class 'modeling.models.psmnet.model.PSMNet'>
     Model = getattr(models, model_cfg['model'])
     model = Model(cfgs)
+    # model.Trainer是类名, 下一步还需要初始化, 和model=Model(cfgs)相似
     Trainer = model.Trainer
 
     if is_dist and trainer_cfg.get('sync_bn', False):
