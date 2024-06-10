@@ -5,8 +5,9 @@ import torch.optim as optim
 from .edgestereo import edgestereo
 from modeling.base_model import BaseModel
 from base_trainer import BaseTrainer
-from utils import get_attr_from,get_valid_args
+from utils import get_attr_from, get_valid_args
 from modeling.common.lamb import Lamb  # 优化器, 继承自Optimizer
+import PIL
 
 
 class EdgeStereo(BaseModel):
@@ -27,31 +28,59 @@ class EdgeStereo(BaseModel):
 
     def forward(self, inputs):
         # input的格式是词典, 需要修改net的forward的参数
+        # inputs.keys(): dict_keys(['ref_img', 'tgt_img', 'disp_gt', 'mask', 'index'])
         # ref_img = inputs["ref_img"]
         # tgt_img = inputs["tgt_img"]
         disparity_map = self.net(inputs)
+        # print(disparity_map.shape)
 
         if self.training:
+            # 3层词典嵌套
             output = {
                 "training_disp": {
+                    # disparity_map 需要和 yaml 中 loss_cfg/log_prefix 参数保持一致
                     "disparity_map": {
                         "disp_ests": disparity_map,
                         "disp_gt": inputs["disp_gt"],
                         "mask": inputs["mask"],
                     },
+                    # 如果还有多个loss计算，可以传递其他log-prefix（猜测，应该成立，在yaml定义其他的loss计算方式）
+                    # "another disparity_map": {
+                    #     "disp_ests": disparity_map,
+                    #     "disp_gt": inputs["disp_gt"],
+                    #     "mask": inputs["mask"],
+                    # },
                 },
                 "visual_summary": {},
+                # "visual_summary": {
+                #     'image/train/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
+                #     'image/train/disp_c': torch.cat([inputs['disp_gt'][0], res[-1][0]], dim=0),
+                # },
             }
         else:
-            if disparity_map[-1].dim() == 4:
+            # 因为是val或test, 所以一个batch只取一张图像返回吗?
+            # test数据集的inputs.keys(): dict_keys(['ref_img', 'tgt_img', 'name', 'index'])
+
+            if disparity_map[-1].dim() == 4:  # shape为B*1*H*W, 删除通道为 B*H*W
                 disparity_map[-1] = disparity_map[-1].squeeze(1)
+
+            # print(disparity_map[-1].shape)
+            # print(inputs["ref_img"][0,0].shape)
+            cated_image = torch.cat((disparity_map[-1], inputs["ref_img"][0,0].unsqueeze(0)), dim=2) # shape:B*H*W
+
             output = {
                 "inference_disp": {
-                    "disp_est": disparity_map[-1],
-                    "disp_gt": inputs["disp_gt"],
-                    "mask": inputs["mask"],
+                    # disp_est而不是ests, 单数而非复数, 只返回一张图
+                    "disp_est": cated_image,  # disparity_map[-1],
+                    # "ref_img" : inputs["ref_img"],
+                    # "disp_gt": inputs["disp_gt"],
+                    # "mask": inputs["mask"],
                 },
                 "visual_summary": {},
+                # "visual_summary": {
+                #     'image/test/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
+                #     'image/test/disp_c': res[0][0][0],
+                # }
             }
         return output
 
