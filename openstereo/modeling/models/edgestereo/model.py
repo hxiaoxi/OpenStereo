@@ -7,7 +7,6 @@ from modeling.base_model import BaseModel
 from base_trainer import BaseTrainer
 from utils import get_attr_from, get_valid_args
 from modeling.common.lamb import Lamb  # 优化器, 继承自Optimizer
-import PIL
 
 
 class EdgeStereo(BaseModel):
@@ -32,15 +31,17 @@ class EdgeStereo(BaseModel):
         # ref_img = inputs["ref_img"]
         # tgt_img = inputs["tgt_img"]
         disparity_map = self.net(inputs)
-        # print(disparity_map.shape)
 
+        # print(disparity_map.shape)
+        if disparity_map.dim()==4 and disparity_map.shape[1]==1:
+            disparity_map=disparity_map.squeeze(1)
         if self.training:
             # 3层词典嵌套
             output = {
                 "training_disp": {
                     # disparity_map 需要和 yaml 中 loss_cfg/log_prefix 参数保持一致
                     "disparity_map": {
-                        "disp_ests": disparity_map,
+                        "disp_ests": [disparity_map],
                         "disp_gt": inputs["disp_gt"],
                         "mask": inputs["mask"],
                     },
@@ -63,15 +64,11 @@ class EdgeStereo(BaseModel):
 
             if disparity_map[-1].dim() == 4:  # shape为B*1*H*W, 删除通道为 B*H*W
                 disparity_map[-1] = disparity_map[-1].squeeze(1)
-
-            # print(disparity_map[-1].shape)
-            # print(inputs["ref_img"][0,0].shape)
-            cated_image = torch.cat((disparity_map[-1], inputs["ref_img"][0,0].unsqueeze(0)), dim=2) # shape:B*H*W
-
+            # cated_image = torch.cat((disparity_map[-1], inputs["ref_img"][0, 0].unsqueeze(0)), dim=2)  # shape:B*H*W
             output = {
                 "inference_disp": {
                     # disp_est而不是ests, 单数而非复数, 只返回一张图
-                    "disp_est": cated_image,  # disparity_map[-1],
+                    "disp_est": disparity_map[-1],
                     # "ref_img" : inputs["ref_img"],
                     # "disp_gt": inputs["disp_gt"],
                     # "mask": inputs["mask"],

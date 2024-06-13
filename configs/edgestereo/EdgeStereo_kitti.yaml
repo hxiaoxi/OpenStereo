@@ -12,7 +12,7 @@ data_cfg:
 #  test_list: datasets/KITTI12/kitti12_test.txt
 
   num_workers: 4
-  train_batch_size: 1
+  train_batch_size: 2
   val_batch_size: 1
   pin_memory: true
   shuffle: true
@@ -82,7 +82,7 @@ loss_cfg:
   - log_prefix: disparity_map
     loss_term_weight: 1
     type: Weighted_Smooth_l1_Loss
-    weights: [ 0.5, 0.7, 1.0 ]
+    weights: [ 1.0 ]
 
 
 trainer_cfg:
