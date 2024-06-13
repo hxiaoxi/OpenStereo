@@ -1,11 +1,11 @@
 data_cfg:
   name: SceneFlow
-  root: data/SceneFlow
+  root: /home/huangjx/Downloads/dataset/SceneFlow
   train_list: datasets/SceneFlow/sceneflow_cleanpass_train.txt
   val_list: datasets/SceneFlow/sceneflow_cleanpass_test.txt
   test_list: datasets/SceneFlow/sceneflow_cleanpass_test.txt
   num_workers: 8
-  train_batch_size: 4
+  train_batch_size: 2
   val_batch_size: 1
   pin_memory: true
   shuffle: true
@@ -44,33 +44,36 @@ data_cfg:
 
 
 model_cfg:
-  model: PSMNet
+  model: EdgeStereo
 
   base_config:
-    max_disp: 192
+    max_disp: 192 
+    hedpt_path: /home/huangjx/Documents/OpenStereo/hed_checkpoint.pt
 
   # Backbone
-  backbone_cfg:
-    type: PSMNet
+  # backbone_cfg:
+  #   type: PSMNet
 
   # VolumeCostProcessor
-  cost_processor_cfg:
-    type: PSMCostProcessor
+  # cost_processor_cfg:
+  #   type: PSMCostProcessor
 
   # DispProcessor
-  disp_processor_cfg:
-    type: PSMDispProcessor
+  # disp_processor_cfg:
+  #   type: PSMDispProcessor
 
 
 loss_cfg:
-  - log_prefix: disp
+  - log_prefix: disparity_map
     loss_term_weight: 1
     type: Weighted_Smooth_l1_Loss
-    weights: [ 0.5, 0.7, 1.0 ]
+    weights: [ 1.0 ]
+    # weights: [ 0.5, 0.7, 1.0 ]
+
 
 
 trainer_cfg:
-  save_name: PSMNet_SceneFlow
+  save_name: EdgeStereo_SceneFlow
   total_epoch: 15
   restore_hint: 0
   log_iter: 50 # iter
