@@ -205,8 +205,8 @@ class HED(nn.Module):
         # Prepare for aligned crop.
         self.crop1_margin, self.crop2_margin, self.crop3_margin, self.crop4_margin, self.crop5_margin = self.prepare_aligned_crop()
 
-    def load_checkpoint(self, opt=None, path='./checkpoint.pth'):
-        """ Load previous pre-trained checkpoint.
+    def load_checkpoint(self, opt=None, path="./checkpoint.pth"):
+        """Load previous pre-trained checkpoint.
         :param net:  Network instance.
         :param opt:  Optimizer instance.
         :param path: Path of checkpoint file.
@@ -215,23 +215,23 @@ class HED(nn.Module):
         # print(path)
         # D:\Code\EdgeStereo\xwj_hed\data\hed_checkpoint.pt
         if os.path.isfile(path):
-            print('=> Loading checkpoint {}...'.format(path))
+            print("=> Loading checkpoint {}...".format(path))
             checkpoint = torch.load(path)
 
             new_state_dict = {}
             # print(checkpoint['net'].keys())
-            for key, value in checkpoint['net'].items():
+            for key, value in checkpoint["net"].items():
                 # 去掉参数名中的 'module.' 前缀
-                new_key = key.replace('module.', '')
+                new_key = key.replace("module.", "")
                 new_state_dict[new_key] = value
             # print(new_state_dict.keys())
             # print(self.state_dict().keys())
-            self.load_state_dict(new_state_dict,strict=False)
+            self.load_state_dict(new_state_dict, strict=False)
             # net.load_state_dict(checkpoint['net'])
             # opt.load_state_dict(checkpoint['opt'])
-            return checkpoint['epoch']
+            return checkpoint["epoch"]
         else:
-            raise ValueError('=> No checkpoint found at {}.'.format(path))
+            raise ValueError("=> No checkpoint found at {}.".format(path))
 
     # noinspection PyMethodMayBeStatic
     def prepare_aligned_crop(self):
@@ -411,4 +411,3 @@ def disp_reg(x: torch.Tensor, maxdisp: int) -> torch.Tensor:
     disp = torch.FloatTensor(np.reshape(np.array(range(maxdisp)), [1, maxdisp, 1, 1])).cuda()
     out = torch.sum(x * disp, 1)  # 按位相乘并求和, 所有视差和其概率相乘并求和, 加权和
     return out
-
