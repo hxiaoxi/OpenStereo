@@ -61,17 +61,33 @@ class edgestereo(nn.Module):
             nn.Conv2d(32, 1, kernel_size=3, stride=1, padding=1),
         )
         # print(self.state_dict().keys())
-        self.initialize_weights() # relu和leakyrelu不统一, 效果存疑
+        self.initialize_weights()  # relu和leakyrelu不统一, 效果存疑
 
     def initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m,nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+    # basemodel里有参数初始化
+    # def init_parameters(self):
+    #     for m in self.modules():
+    #         if isinstance(m, (nn.Conv3d, nn.Conv2d, nn.Conv1d)):
+    #             nn.init.xavier_uniform_(m.weight.data)
+    #             if m.bias is not None:
+    #                 nn.init.constant_(m.bias.data, 0.0)
+    #         elif isinstance(m, nn.Linear):
+    #             nn.init.xavier_uniform_(m.weight.data)
+    #             if m.bias is not None:
+    #                 nn.init.constant_(m.bias.data, 0.0)
+    #         elif isinstance(m, (nn.BatchNorm3d, nn.BatchNorm2d, nn.BatchNorm1d)):
+    #             if m.affine:
+    #                 nn.init.normal_(m.weight.data, 1.0, 0.02)
+    #                 nn.init.constant_(m.bias.data, 0.0)
 
     def forward(self, inputs):
         # print('inputs keys:',inputs.keys())
@@ -113,7 +129,7 @@ class edgestereo(nn.Module):
         # dec1 = self.decoder2(dec2)  # 256 * 1/2
         # dec1 = torch.cat([dec1, enc1, e1], dim=1)
         # output = self.decoder1(dec1)  # 128 * 1
-        
+
         # if self.decoder_type='cat'or'add'
         dec = self.decoder4(enc4)  # 1024 * 1/8
         dec = self.decoder3(dec)  # 512 * 1/4
