@@ -1,20 +1,11 @@
-环境安装
-在windows环境下, pip install -r requirements.txt会报错, torch和torchvision无法安装, 另外使用命令
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-
-(1)conda create -n openstereo python=3.10 
-(2)conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
-(3)pip install -r requirements.txt
-(4)pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-其中(2)和(4)有重复包, pytorch-cuda和torch==1.11.0+cu113应该是重复的
-
-
+========================================================================================================================
 训练
 set CUDA_VISIBLE_DEVICES=0,1
 python openstereo/main.py --config ./configs/psmnet/PSMNet_sceneflow_amp.yaml --scope train
 
 set CUDA_VISIBLE_DEVICES=0
 python openstereo/main.py --config ./configs/psmnet/PSMNet_kitti.yaml --scope train --no_distribute --device cuda:0
+python openstereo/save_modelpt.py --config ./configs/psmnet/PSMNet_kitti.yaml --scope train --no_distribute --device cuda:0
 
 set CUDA_VISIBLE_DEVICES=0
 python openstereo/main.py --config ./configs/edgestereo/EdgeStereo_kitti.yaml --scope train --no_distribute --device cuda:0 --restore_hint 1
@@ -31,7 +22,7 @@ CUDA_VISIBLE_DEVICES=0,1 python openstereo/main.py --config ./configs/psmnet/PSM
 set CUDA_VISIBLE_DEVICES=0
 python openstereo/main.py --config ./configs/edgestereo/EdgeStereo_kitti.yaml --scope val --no_distribute --device cuda:0 --restore_hint 1
 
-
+========================================================================================================================
 ip: 172.18.196.173
 user: huangjx
 passwd: huangjiaxi
@@ -47,3 +38,14 @@ scp -r floder_name huangjx@172.18.196.173:/home/huangjx/Downloads/dataset
 
 下载
 scp remoteuser@remotehost:/home/remoteuser/remotefile.txt /本地路径/
+
+========================================================================================================================
+环境安装
+在windows环境下, pip install -r requirements.txt会报错, torch和torchvision无法安装, 另外使用命令
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+
+(1)conda create -n openstereo python=3.10 
+(2)conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+(3)pip install -r requirements.txt
+(4)pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+其中(2)和(4)有重复包, pytorch-cuda和torch==1.11.0+cu113应该是重复的

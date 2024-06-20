@@ -33,8 +33,8 @@ class EdgeStereo(BaseModel):
         disparity_map = self.net(inputs)
 
         # print(disparity_map.shape)
-        if disparity_map.dim()==4 and disparity_map.shape[1]==1:
-            disparity_map=disparity_map.squeeze(1)
+        if disparity_map.dim() == 4 and disparity_map.shape[1] == 1:
+            disparity_map = disparity_map.squeeze(1)
         if self.training:
             # 3层词典嵌套
             output = {
@@ -52,11 +52,13 @@ class EdgeStereo(BaseModel):
                     #     "mask": inputs["mask"],
                     # },
                 },
-                "visual_summary": {},
-                # "visual_summary": {
-                #     'image/train/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
-                #     'image/train/disp_c': torch.cat([inputs['disp_gt'][0], res[-1][0]], dim=0),
-                # },
+                # "visual_summary": {},
+                "visual_summary": {
+                    "image/train/image_c": torch.cat([inputs["ref_img"][0], inputs["tgt_img"][0]], dim=1),  # dim=1,上下拼接，shape=C*2H*W
+                    "image/train/disp_c": torch.cat([inputs["disp_gt"][0], disparity_map[-1][0]], dim=0),  # 对于结果的shape不太确定，得调试。
+                    # 'image/train/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
+                    #     'image/train/disp_c': torch.cat([disp_gt[0], disp3[0]], dim=0),
+                },
             }
         else:
             # 因为是val或test, 所以一个batch只取一张图像返回吗?
@@ -77,8 +79,16 @@ class EdgeStereo(BaseModel):
                 # "visual_summary": {
                 #     'image/test/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
                 #     'image/test/disp_c': res[0][0][0],
+                # 'image/test/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
+                #     'image/test/disp_c': disp3[0]
                 # }
             }
+            # if 'disp_gt' in inputs:
+            #     disp_gt = inputs['disp_gt']
+            #     output['visual_summary'] = {
+            #         'image/val/image_c': torch.cat([ref_img[0], tgt_img[0]], dim=1),
+            #         'image/val/disp_c': torch.cat([disp_gt[0], disp3[0]], dim=0),
+            #     }
         return output
 
 
