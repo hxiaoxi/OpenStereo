@@ -62,6 +62,7 @@ model_cfg:
 
   base_config:
     max_disp: 192
+    batch_norm : true
     hedpt_path: D:/Code/OpenStereo/hed_checkpoint.pt
     
 
@@ -87,9 +88,9 @@ loss_cfg:
 
 trainer_cfg:
   save_name: EdgeStereo_KITTI
-  total_epoch: 15
+  total_epoch: 1
   restore_hint: 0
-  log_iter: 50 # iter
+  log_iter: 15 # iter
   save_every: 1 # epoch, 每个epoch保存
   val_every: 1 # epoch, 每个epoch验证
   amp: false
