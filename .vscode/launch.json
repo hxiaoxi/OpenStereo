@@ -5,14 +5,47 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Debug edgestereo",
+            "name": "Python: Debug edgestereo sceneflow in server",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/openstereo/main.py",
             "args": [
                 "--config", "./configs/edgestereo/EdgeStereo_sceneflow.yaml",
                 "--scope", "train",
-                // "--restore_hint", "8"
+                // "--restore_hint", "1"
+            ],
+            "env":{
+                "CUDA_VISIBLE_DEVICES": "1,2,3"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug edgestereo_kitti in desktop",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstereo/main.py",
+            "args": [
+                "--config", "./configs/edgestereo/EdgeStereo_kitti.yaml",
+                // "--config", "./configs/edgestereo/EdgeStereo_sceneflow.yaml",
+                "--scope", "train",
+                "--no_distribute",
+                "--device", "cuda:0",
+                // "--restore_hint", "1"
+            ],
+            "console": "integratedTerminal"
+        },
+        
+        {
+            "name": "Python: Debug psmnet",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstereo/main.py",
+            "args": [
+                "--config", "./configs/psmnet/PSMNet_kitti.yaml",
+                "--scope", "train",
+                "--no_distribute",
+                "--device", "cuda:0",
+                "--restore_hint", "1"
             ],
             "env": {
                 "CUDA_VISIBLE_DEVICES":"1,2,3"
