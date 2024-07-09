@@ -51,12 +51,6 @@ class EdgeStereo(BaseModel):
                     "image/train/edge": edge[0][0], # edge.shape 2*1*H*W
                 },
             }
-            # max1=disparity_map.max()
-            # min1=disparity_map.min()
-            # max2=edge.max()
-            # min2=edge.min()
-            # max3=inputs["disp_gt"][0].max()
-            # min3=inputs["disp_gt"][0].min()
         else:
             # val或test的一个batch只取一张图像返回吗
             # test数据集的inputs.keys(): dict_keys(['ref_img', 'tgt_img', 'name', 'index']), 少了disp_gt
@@ -66,14 +60,12 @@ class EdgeStereo(BaseModel):
                 "inference_disp": {
                     # disp_est而不是ests, 单数而非复数, 只返回一张图
                     "disp_est": disparity_map[0],
-                    # "ref_img" : inputs["ref_img"],
-                    # "disp_gt": inputs["disp_gt"],
                     # "mask": inputs["mask"],
                 },
                 "visual_summary": {
-                    "image/train/image_c": torch.cat([inputs["ref_img"][0], inputs["tgt_img"][0]], dim=1),
-                    "image/train/disp_c": disparity_map[0],
-                    # "image/train/edge": 1,
+                    "image/test/image_c": torch.cat([inputs["ref_img"][0], inputs["tgt_img"][0]], dim=1),
+                    "image/test/disp_c": disparity_map[0],
+                    "image/test/edge": edge[0][0],
                 },
             }
             # if 'disp_gt' in inputs:
