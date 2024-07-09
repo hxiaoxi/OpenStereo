@@ -6,7 +6,7 @@ data_cfg:
   test_list: datasets/SceneFlow/sceneflow_cleanpass_test.txt
   num_workers: 8
   train_batch_size: 2
-  val_batch_size: 4
+  val_batch_size: 2
   pin_memory: true
   shuffle: true
 
@@ -47,7 +47,8 @@ model_cfg:
   model: EdgeStereo
 
   base_config:
-    max_disp: 192 
+    max_disp: 192
+    batch_norm: true
     hedpt_path: /home/huangjx/Documents/OpenStereo/hed_checkpoint.pt
 
 
@@ -62,9 +63,9 @@ loss_cfg:
 
 trainer_cfg:
   save_name: EdgeStereo_SceneFlow
-  total_epoch: 2
+  total_epoch: 10
   restore_hint: 0
-  log_iter: 50 # iter
+  log_iter: 100 # iter
   save_every: 1 # epoch
   val_every: 1 # epoch
   amp: false
