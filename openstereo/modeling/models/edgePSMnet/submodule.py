@@ -1,3 +1,5 @@
+import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -191,7 +193,7 @@ class PSMAggregator(nn.Module):
 
 
 class PSMCostProcessor(nn.Module):
-    def __init__(self, max_disp=192, in_planes=64):
+    def __init__(self, max_disp=192, in_planes=76):
         super().__init__()
         self.cat_func = partial(
             cat_fms,
@@ -215,6 +217,11 @@ class PSMCostProcessor(nn.Module):
         right_img = inputs["tgt_img"]
         left_edge = self.HEDNet(left_img)
         right_edge = self.HEDNet(right_img)
+        left_edge = torch.cat(left_edge,dim=1)
+        right_edge = torch.cat(right_edge,dim=1)
+        _,_,H,W = left_feature.shape
+        left_edge = F.interpolate(left_edge,[H,W],mode='bilinear',align_corners=True)
+        right_edge = F.interpolate(right_edge,[H,W],mode='bilinear',align_corners=True)
 
         left_feature = torch.cat([left_feature, left_edge], dim=1)
         right_feature = torch.cat([right_feature, right_edge], dim=1)
