@@ -52,8 +52,8 @@ model_cfg:
     hedpt_path: /home/huangjx/Documents/OpenStereo/hed_checkpoint.pt
 
   # Backbone
-  # backbone_cfg:
-  #   type: PSMNet
+  backbone_cfg:
+    type: PSMNet
 
   # VolumeCostProcessor
   # cost_processor_cfg:

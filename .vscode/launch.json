@@ -5,28 +5,26 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Debug edgestereo distribute",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/openstereo/main.py",
-            "args": [
-                "--config", "./configs/edgestereo/EdgeStereo_sceneflow.yaml",
-                "--scope", "train",
-                "--restore_hint", "1"
-            ],
-            "env":{
-                "CUDA_VISIBLE_DEVICES": "1,2,3"
-            },
-            "console": "integratedTerminal"
-        },
-        {
             "name": "Python: Debug edgestereo_kitti in desktop",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/openstereo/main.py",
             "args": [
                 "--config", "./configs/edgestereo/EdgeStereo_kitti.yaml",
-                // "--config", "./configs/edgestereo/EdgeStereo_sceneflow.yaml",
+                "--scope", "train",
+                "--no_distribute",
+                "--device", "cuda:0",
+                // "--restore_hint", "1"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug edgestereo_sceneflow in server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstereo/main.py",
+            "args": [
+                "--config", "./configs/edgestereo/EdgeStereo_kitti.yaml",
                 "--scope", "train",
                 "--no_distribute",
                 "--device", "cuda:0",
@@ -49,26 +47,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Debug psmnet",
+            "name": "Python: Debug psmnet_kitti in desktop",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/openstereo/main.py",
             "args": [
                 "--config", "./configs/psmnet/PSMNet_kitti.yaml",
-                "--scope", "train",
-                "--no_distribute",
-                "--device", "cuda:0",
-                "--restore_hint", "1"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: Debug test",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/openstereo/main.py",
-            "args": [
-                "--config", "./configs/edgestereo/EdgeStereo_kitti.yaml",
                 "--scope", "test_kitti",
                 "--no_distribute",
                 "--device", "cuda:0",

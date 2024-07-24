@@ -12,43 +12,57 @@ from modeling.common.lamb import Lamb  # 优化器, 继承自Optimizer
 class EdgeStereo(BaseModel):
     def __init__(self, *args, **kwargs):
         super(EdgeStereo, self).__init__(*args, **kwargs)
+        # self.model_cfg在BaseModel中初始化
         # self.Trainer = EdgeStereo_Trainer
 
     def build_network(self):
-        # self.model_cfg在BaseModel中定义
+        model_cfg = self.model_cfg
+        if "backbone_cfg" in model_cfg.keys():
+            cfg = model_cfg["base_config"].copy()
+            cfg.update(model_cfg["backbone_cfg"])
+            self.feaExtra = self.build_backbone(cfg)
+        else:
+            raise NotImplementedError
         self.net = edgestereo(model_cfg=self.model_cfg)
-        # 基类通过以下语句控制是否生成backbone等, 不需要使用的话在yaml中注释掉对应的cfg
+        # base_model 通过yaml设置网络结构
         # if 'backbone_cfg' in model_cfg.keys():
         # if 'cost_processor_cfg' in model_cfg.keys():
         # if 'disp_processor_cfg' in model_cfg.keys():
 
     def forward(self, inputs):
-        # input的类型是词典
-        # inputs.keys(): dict_keys(['ref_img', 'tgt_img', 'disp_gt', 'mask', 'index'])
-        disparity_map, edge = self.net(inputs)
+        # input是词典, keys(): ['ref_img', 'tgt_img', 'disp_gt', 'mask', 'index']
 
-        # print(disparity_map.shape) # 可以去掉这一步，在net里确保返回值的shape为B*H*W
-        if disparity_map.dim() == 4 and disparity_map.shape[1] == 1:
-            disparity_map = disparity_map.squeeze(1)
+        # feaExtra的输入输出
+        # "inputs": ["ref_img", "tgt_img"], B*3*H*W
+        # "outputs": ["ref_feature", "tgt_feature"], B*128*H/4*W/4
+        fea_out = self.feaExtra(inputs)
+        inputs.update(fea_out)
+
+        disparity_map, edge_map = self.net(inputs)
+        # disp_map:B*H*W, edge:B*H*W
+
         if self.training:
             # 3层词典嵌套
             output = {
-                # disparity_map 需要和yaml中loss_cfg/log_prefix参数保持一致, 实质是loss的前缀名
                 "training_disp": {
+                    # disparity_map 需要和yaml中loss_cfg/log_prefix参数保持一致, 指定了使用哪种loss
                     "disparity_map": {
-                        "disp_ests": [disparity_map],
+                        "disp_ests": [disparity_map],  # 使用列表, 因为可以传递多个disp和不同的权重
                         "disp_gt": inputs["disp_gt"],
                         "mask": inputs["mask"],
                     },
-                    # 如果还有多个loss计算，可以传递其他log_prefix
-                    # "another loss": {
-                    # },
+                    # 如果有多种loss, 可以在yaml的loss_cfg中设置, 用于增加正则项
+                    "edge_smooth_loss": {
+                        "edge_est": edge_map,
+                        "disp_est": disparity_map,
+                        "mask": inputs["mask"],
+                    },
                 },
                 # visual_summary用于tensorboard可视化
                 "visual_summary": {
                     "image/train/image_c": torch.cat([inputs["ref_img"][0], inputs["tgt_img"][0]], dim=1),  # dim=1,上下拼接,shape=C*2H*W
                     "image/train/disp_c": torch.cat([inputs["disp_gt"][0], disparity_map[0]], dim=0),
-                    "image/train/edge": edge[0][0], # edge.shape 2*1*H*W
+                    "image/train/edge": edge_map[0],  # edge.shape B*H*W
                 },
             }
         else:
@@ -65,7 +79,7 @@ class EdgeStereo(BaseModel):
                 "visual_summary": {
                     "image/test/image_c": torch.cat([inputs["ref_img"][0], inputs["tgt_img"][0]], dim=1),
                     "image/test/disp_c": disparity_map[0],
-                    "image/test/edge": edge[0][0],
+                    "image/test/edge": edge_map[0],
                 },
             }
             # if 'disp_gt' in inputs:
