@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.cuda.amp import autocast
 import torch.optim as optim
 from .submodule import *
-from modeling.common.basic_layers import conv_bn, conv_bn_relu, deconv_bn_relu, BasicBlock
+from modeling.common.basic_layers import conv_bn_relu
 
 
 class edgestereo(nn.Module):
@@ -13,53 +13,33 @@ class edgestereo(nn.Module):
         super(edgestereo, self).__init__(*args, **kwargs)
 
         # 在yaml中设置base_config
+        self.fea_scale = 4  # 特征提取时分辨率的缩放比例
+        self.bn = model_cfg["base_config"]["batch_norm"]
         self.max_disp = model_cfg["base_config"]["max_disp"]
 
-        # edge dection
-        self.bn = model_cfg["base_config"]["batch_norm"]
-        self.conv1_x = nn.Sequential(  # resnet-50的stage0, 用3个3*3卷积替代原本的1个7*7卷积
-            conv_bn_relu(self.bn, 3, 64, 3, 1, 1, 1, bias=False),
-            conv_bn_relu(self.bn, 64, 64, 3, 1, 1, 1, bias=False),
-            conv_bn_relu(self.bn, 64, 128, 3, 1, 1, 1, bias=False),
-        )  # output.shape:B*128*H*W
-        # self.maxpool = nn.MaxPool2d(2, stride=2, ceil_mode=True)
-
+        # 边缘提取, HED直接导入训练好的参数并固定参数
         self.HEDNet = HED()
-        # HED直接导入训练好的参数并固定参数
         self.HEDNet.load_checkpoint(path=model_cfg["base_config"]["hedpt_path"])
         for name, param in self.HEDNet.named_parameters():
             param.requires_grad = False
 
-        self.corr_layer = DispCorrLayer(max_disp=self.max_disp)
+        # max_disp需要根据分辨率同步缩放
+        # self.corr_layer = DispCorrLayer(max_disp=self.max_disp // self.fea_scale)
 
-        self.chs = self.max_disp + 6  # corr + edge
-        # left_feature刚经过corr得到corr_cost就又和left_feature拼接, 看起来没有什么意义
-        # 但maxD=192, 和edge的6通道相比, 差两个数量级, 可能会影响效果
-
-        self.encoder1 = Encoder(self.chs, 256)  # 1/2
-        self.encoder2 = Encoder(256, 512)  # 1/4
-        self.encoder3 = Encoder(512, 1024)  # 1/8
-        # self.encoder4 = Encoder(1024, 2048)
-        # self.res_encoder1 = make_layer(ResidualBlock, self.chs, 256, 3, 2)  # 1/2
-        # self.res_encoder2 = make_layer(ResidualBlock, 256, 512, 4, 2)  # 1/4
-        # self.res_encoder3 = make_layer(ResidualBlock, 512, 1024, 6, 2)  # 1/8
-        # self.res_encoder4 = make_layer(ResidualBlock, 1024, 1024, 3, 2)  # 1/16
-        # self.conv_ende = conv_bn_relu(1024, 1024, 3, 1)
-
-        # self.decoder4 = Decoder(2048, 1024)
-        self.decoder3 = Decoder(1024, 512)
-        self.decoder2 = Decoder(512, 256)
-        self.decoder1 = Decoder(256, 128)
-        # skip connection
-        # self.decoder4 = deconv_bn_relu(1024+1024+32, 1024, ksize=3, s=2)
-        # self.decoder3 = deconv_bn_relu(1024+1024+32, 512, ksize=3, s=2)
-        # self.decoder2 = deconv_bn_relu(512+512+32, 256, ksize=3, s=2)
-        # self.decoder1 = deconv_bn_relu(256+256+32, 128, ksize=3, s=2)
-        # no skip connection
-        # self.decoder4 = deconv_bn_relu(1024, 1024, ksize=3, s=2)  # 1/8
-        # self.decoder3 = deconv_bn_relu(1024, 512, ksize=3, s=2)  # 1/4
-        # self.decoder2 = deconv_bn_relu(512, 256, ksize=3, s=2)  # 1/2
-        # self.decoder1 = deconv_bn_relu(256, 128, ksize=3, s=2)  # 1
+        self.inplanes = self.max_disp // self.fea_scale
+        # self.encoder1 = Encoder(self.inplanes, 256)  # 1/8
+        # self.encoder2 = Encoder(256, 512)  # 1/16
+        # self.encoder3 = Encoder(512, 1024)  # 1/32
+        # resnet50编码器
+        self.encoder1 = make_layer(BasicBlock, self.inplanes, 128, 3, 1, 1)
+        self.encoder2 = make_layer(BasicBlock, 128, 256, 4, 2, 1)
+        self.encoder3 = make_layer(BasicBlock, 256, 512, 6, 2, 1)
+        self.encoder4 = make_layer(BasicBlock, 512, 1024, 3, 2, 1)
+        # 简单的解码结构
+        self.decoder4 = Decoder(1024, 512)
+        self.decoder3 = Decoder(512, 256)
+        self.decoder2 = Decoder(256, 128)
+        self.decoder1 = Decoder(128, 128)
 
         self.last_conv = nn.Sequential(
             conv_bn_relu(self.bn, 128, 64, 3, 1, 1, 1, bias=False),
@@ -69,61 +49,62 @@ class edgestereo(nn.Module):
         # baseTrainer里有模型参数初始化, 可在yaml中设置
 
     def forward(self, inputs):
-        # inputs keys: dict_keys(['ref_img', 'tgt_img', 'disp_gt', 'mask', 'index'])
+        # inputs keys: dict_keys(['ref_img', 'tgt_img', "ref_feature", "tgt_feature", 'disp_gt', 'mask', 'index'])
         left_img = inputs["ref_img"]
         right_img = inputs["tgt_img"]
 
-        # edge detection, HED的返回内容如下
-        # fuse_cat = torch.cat((crop1, crop2, crop3, crop4, crop5), dim=1)
-        # fuse = self.score_final(fuse_cat)  # Shape: B*5*H*W -> B*1*H*W
-        # results = [crop1, crop2, crop3, crop4, crop5, fuse]
-        # results = [torch.sigmoid(r) for r in results]
-        pre_edges = self.HEDNet(left_img)  # 原图大小的边缘
+        # edge detection
+        # pre_edges = sigmoid([score_dsn1-5, crop1-5, fuse])
+        left_edges = self.HEDNet(left_img)  # 原图大小的边缘
+        right_edges = self.HEDNet(right_img)
 
-        # corr layer
-        left_1 = self.conv1_x(left_img)  # 直接在第一步 left_img + edge 可以吗, 有必要吗?
-        right_1 = self.conv1_x(right_img)
-        corr_fea = self.corr_layer(left_1, right_1)  # b*maxD*H*W
-        # 应该在cost volume后加权和估计初始视差吗?
-        # init_disparity = weight_softmax(corr_fea);
-        cat_edge = torch.cat(pre_edges, dim=1)  # b*6*H*W
-        hybrid_fea = torch.cat([corr_fea, cat_edge], dim=1)  # b*(maxD+6)*H*W
+        # 待匹配的特征
+        left_fea = inputs["ref_feature"]  # 使用backbone提取特征, fea.shape=B*128*H/4*W/4
+        right_fea = inputs["tgt_feature"]
 
-        # encoder:resnet50:3-4-6-3
-        # enc1 = self.res_encoder1(hybrid_fea)  # 1/2
-        # enc2 = self.res_encoder2(enc1)  # 1/4
-        # enc3 = self.res_encoder3(enc2)  # 1/8
-        # enc4 = self.res_encoder4(enc3)  # 1/16
-        enc1 = self.encoder1(hybrid_fea)  # 256 * 1/2
-        enc2 = self.encoder2(enc1)  # 512 * 1/4
-        enc3 = self.encoder3(enc2)  # 1024 * 1/8
-        # enc4 = self.encoder4(enc3)  # 2048 * 1/16
+        left_cat_edge = torch.cat(left_edges[5:], dim=1)  # b*6*H*W
+        right_cat_edge = torch.cat(right_edges[5:], dim=1)  # b*6*H*W
+        _, _, h, w = left_fea.shape
+        left_cat_edge = F.interpolate(left_cat_edge, [h, w], mode="bilinear", align_corners=True)
+        right_cat_edge = F.interpolate(right_cat_edge, [h, w], mode="bilinear", align_corners=True)
 
-        # decoder:
-        # dec4 = torch.cat([dec4, enc4, e4], dim=1)
-        # dec3 = self.decoder4(dec4)  # 1024 * 1/8
-        # dec3 = torch.cat([dec3, enc3, e3], dim=1)
-        # dec2 = self.decoder3(dec3)  # 512 * 1/4
-        # dec2 = torch.cat([dec2, enc2, e2], dim=1)
-        # dec1 = self.decoder2(dec2)  # 256 * 1/2
-        # dec1 = torch.cat([dec1, enc1, e1], dim=1)
-        # output = self.decoder1(dec1)  # 128 * 1
+        # 特征+特征, 而非cost+特征
+        left_fea = torch.cat([left_fea, left_cat_edge], dim=1)
+        right_fea = torch.cat([right_fea, right_cat_edge], dim=1)
 
-        # if self.decoder_type='cat'or'add'
-        # dec = self.decoder4(enc4)  # 1024 * 1/8
-        dec2 = self.decoder3(enc3)  # 512 * 1/4
-        dec1 = self.decoder2(dec2)  # 256 * 1/2
-        output = self.decoder1(dec1)  # 128 * 1
+        # 匹配特征, 计算cost volume
+        # corr_fea = self.corr_layer(left_fea, right_fea)  # 原版b*maxD*H*W # feaExtra版b * maxD/4 * HW/4
+        cost_volume = build_2Dcorr(left_fea, right_fea, max_disp=self.max_disp // self.fea_scale)
 
-        # 最终的激活方式感觉有问题. 如何激活得到[0,max_disp]范围的数值
+        enc1 = self.encoder1(cost_volume)  # 256 * 1/4
+        enc2 = self.encoder2(enc1)  # 512 * 1/8
+        enc3 = self.encoder3(enc2)  # 1024 * 1/16
+        enc4 = self.encoder4(enc3)  # 2048 * 1/32
+
+        # decoder_type='cat' or 'add' or 'none'
+        dec3 = self.decoder4(enc4)  # 1024 * 1/16
+        dec2 = self.decoder3(dec3)  # 512 * 1/8
+        dec1 = self.decoder2(dec2)  # 256 * 1/4
+        output = self.decoder1(dec1)  # 128 * 1/2
+
+        # 如何得到logits?
+        # 激活方式很重要, 如何得到[0,max_disp]范围的数值
         disparity = self.last_conv(output)  # 64->32->1,最后一层没有bn和relu
+        _, _, h, w = left_img.shape
+        disparity = F.interpolate(disparity, [h, w], mode="bilinear", align_corners=True)
         disparity = torch.clamp(disparity, min=0, max=self.max_disp)
         # disparity = torch.sigmoid(disparity) * self.max_disp
         # disparity = F.relu(disparity, inplace=True) # 去除负值视差
 
-        # softmax?
+        # softmax?加权求和。需求shape，B(*1)*maxD*H*W, 需要修改前面匹配特征的逻辑啊
+        # 2d, for d in range(maxd), 得到一个值, 结果就是 B*D*H*W
+        # 3d, for d in range(maxd), 保留原来的C通道, 结果就是 B*C*D*H*W
 
-        return disparity, pre_edges[-1]
+        # 确保disp的shape为B*H*W
+        if disparity.dim() == 4 and disparity.shape[1] == 1:
+            disparity = disparity.squeeze(1)
+
+        return disparity, left_edges[-1].squeeze(1)
 
 
 class HED(nn.Module):
@@ -132,7 +113,7 @@ class HED(nn.Module):
     def __init__(self):
         super(HED, self).__init__()
         # Layers.
-        self.conv1_1 = nn.Conv2d(3, 64, 3, padding=35)
+        self.conv1_1 = nn.Conv2d(3, 64, 3, padding=35)  # 为何pad=35?
         self.conv1_2 = nn.Conv2d(64, 64, 3, padding=1)
 
         self.conv2_1 = nn.Conv2d(64, 128, 3, padding=1)
@@ -320,11 +301,11 @@ class HED(nn.Module):
         conv5_2 = self.relu(self.conv5_2(conv5_1))
         conv5_3 = self.relu(self.conv5_3(conv5_2))  # Side output 5.
 
-        score_dsn1 = self.score_dsn1(conv1_2)
-        score_dsn2 = self.score_dsn2(conv2_2)
-        score_dsn3 = self.score_dsn3(conv3_3)
-        score_dsn4 = self.score_dsn4(conv4_3)
-        score_dsn5 = self.score_dsn5(conv5_3)
+        score_dsn1 = self.score_dsn1(conv1_2)  # 1
+        score_dsn2 = self.score_dsn2(conv2_2)  # 1/2
+        score_dsn3 = self.score_dsn3(conv3_3)  # 1/4
+        score_dsn4 = self.score_dsn4(conv4_3)  # 1/8
+        score_dsn5 = self.score_dsn5(conv5_3)  # 1/16
 
         # 反卷积到score_dsn1的size, 即原分辨率
         upsample2 = torch.nn.functional.conv_transpose2d(score_dsn2, self.weight_deconv2, stride=2)
@@ -342,6 +323,6 @@ class HED(nn.Module):
         # Concatenate according to channels.
         fuse_cat = torch.cat((crop1, crop2, crop3, crop4, crop5), dim=1)
         fuse = self.score_final(fuse_cat)  # Shape: [batch_size, 1, image_h, image_w].
-        results = [crop1, crop2, crop3, crop4, crop5, fuse]
+        results = [score_dsn1, score_dsn2, score_dsn3, score_dsn4, score_dsn5, crop1, crop2, crop3, crop4, crop5, fuse]
         results = [torch.sigmoid(r) for r in results]
         return results

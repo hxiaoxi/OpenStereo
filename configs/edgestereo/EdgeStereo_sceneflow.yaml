@@ -52,6 +52,19 @@ model_cfg:
     hedpt_path: /home/huangjx/Documents/OpenStereo/hed_checkpoint.pt
 
 
+  # Backbone
+  backbone_cfg:
+    type: PSMNet
+
+  # VolumeCostProcessor
+  # cost_processor_cfg:
+  #   type: PSMCostProcessor
+
+  # DispProcessor
+  # disp_processor_cfg:
+  #   type: PSMDispProcessor
+
+
 loss_cfg:
   - log_prefix: disparity_map
     loss_term_weight: 1
