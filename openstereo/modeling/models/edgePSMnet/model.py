@@ -12,7 +12,7 @@ from utils import get_attr_from, get_valid_args
 from .submodule import *
 
 
-class edgePSMNet(BaseModel):
+class edgePSM(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         """

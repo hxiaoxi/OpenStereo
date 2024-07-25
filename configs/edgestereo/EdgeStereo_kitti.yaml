@@ -1,6 +1,6 @@
 data_cfg:
   name: KITTI2015
-  root: D:/Code/datasets/kitti15
+  root: /home/huangjx/Downloads/dataset/kitti15
   train_list: datasets/KITTI15/kitti15_train180.txt
   val_list: datasets/KITTI15/kitti15_val20.txt
   test_list: datasets/KITTI15/kitti15_val20.txt
@@ -63,7 +63,7 @@ model_cfg:
   base_config:
     max_disp: 192
     batch_norm : true
-    hedpt_path: D:/Code/OpenStereo/hed_checkpoint.pt
+    hedpt_path: /home/huangjx/Documents/OpenStereo/hed_checkpoint.pt
     
   # Backbone, 用来提取特征
   backbone_cfg:
