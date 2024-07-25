@@ -5,15 +5,15 @@ import torch.nn.functional as F
 from torch.cuda.amp import autocast
 import torch.optim as optim
 from .submodule import *
-from modeling.common.basic_layers import conv_bn, conv_bn_relu, deconv_bn_relu, BasicBlock
+from modeling.common.basic_layers import conv_bn_relu
 
 
 class edgestereo(nn.Module):
     def __init__(self, model_cfg, *args, **kwargs):
         super(edgestereo, self).__init__(*args, **kwargs)
 
-        self.fea_scale = 4  # 第一步提取特征时对分辨率的缩放因子
         # 在yaml中设置base_config
+        self.fea_scale = 4  # 特征提取时分辨率的缩放比例
         self.bn = model_cfg["base_config"]["batch_norm"]
         self.max_disp = model_cfg["base_config"]["max_disp"]
 
@@ -23,32 +23,23 @@ class edgestereo(nn.Module):
         for name, param in self.HEDNet.named_parameters():
             param.requires_grad = False
 
-        # self.corr_layer = DispCorrLayer(max_disp=self.max_disp // self.fea_scale)  # max_disp需要根据分辨率同步缩放
-        self.chs = self.max_disp // self.fea_scale
-        self.encoder1 = Encoder(self.chs, 256)  # 1/8
-        self.encoder2 = Encoder(256, 512)  # 1/16
-        self.encoder3 = Encoder(512, 1024)  # 1/32
-        # self.encoder4 = Encoder(512, 1024) # 1/64
-        # self.res_encoder1 = make_layer(ResidualBlock, self.chs, 256, 3, 2)  # 1/2
-        # self.res_encoder2 = make_layer(ResidualBlock, 256, 512, 4, 2)  # 1/4
-        # self.res_encoder3 = make_layer(ResidualBlock, 512, 1024, 6, 2)  # 1/8
-        # self.res_encoder4 = make_layer(ResidualBlock, 1024, 1024, 3, 2)  # 1/16
-        # self.conv_ende = conv_bn_relu(1024, 1024, 3, 1)
+        # max_disp需要根据分辨率同步缩放
+        # self.corr_layer = DispCorrLayer(max_disp=self.max_disp // self.fea_scale)
 
-        # self.decoder4 = Decoder(1024, 512)
-        self.decoder3 = Decoder(1024, 512)
-        self.decoder2 = Decoder(512, 256)
-        self.decoder1 = Decoder(256, 128)
-        # skip connection
-        # self.decoder4 = deconv_bn_relu(1024+1024+32, 1024, ksize=3, s=2)
-        # self.decoder3 = deconv_bn_relu(1024+1024+32, 512, ksize=3, s=2)
-        # self.decoder2 = deconv_bn_relu(512+512+32, 256, ksize=3, s=2)
-        # self.decoder1 = deconv_bn_relu(256+256+32, 128, ksize=3, s=2)
-        # no skip connection
-        # self.decoder4 = deconv_bn_relu(1024, 1024, ksize=3, s=2)  # 1/8
-        # self.decoder3 = deconv_bn_relu(1024, 512, ksize=3, s=2)  # 1/4
-        # self.decoder2 = deconv_bn_relu(512, 256, ksize=3, s=2)  # 1/2
-        # self.decoder1 = deconv_bn_relu(256, 128, ksize=3, s=2)  # 1
+        self.inplanes = self.max_disp // self.fea_scale
+        # self.encoder1 = Encoder(self.inplanes, 256)  # 1/8
+        # self.encoder2 = Encoder(256, 512)  # 1/16
+        # self.encoder3 = Encoder(512, 1024)  # 1/32
+        # resnet50编码器
+        self.encoder1 = make_layer(BasicBlock, self.inplanes, 128, 3, 1, 1)
+        self.encoder2 = make_layer(BasicBlock, 128, 256, 4, 2, 1)
+        self.encoder3 = make_layer(BasicBlock, 256, 512, 6, 2, 1)
+        self.encoder4 = make_layer(BasicBlock, 512, 1024, 3, 2, 1)
+        # 简单的解码结构
+        self.decoder4 = Decoder(1024, 512)
+        self.decoder3 = Decoder(512, 256)
+        self.decoder2 = Decoder(256, 128)
+        self.decoder1 = Decoder(128, 128)
 
         self.last_conv = nn.Sequential(
             conv_bn_relu(self.bn, 128, 64, 3, 1, 1, 1, bias=False),
@@ -67,7 +58,7 @@ class edgestereo(nn.Module):
         left_edges = self.HEDNet(left_img)  # 原图大小的边缘
         right_edges = self.HEDNet(right_img)
 
-        # 待匹配的特征,
+        # 待匹配的特征
         left_fea = inputs["ref_feature"]  # 使用backbone提取特征, fea.shape=B*128*H/4*W/4
         right_fea = inputs["tgt_feature"]
 
@@ -83,37 +74,21 @@ class edgestereo(nn.Module):
 
         # 匹配特征, 计算cost volume
         # corr_fea = self.corr_layer(left_fea, right_fea)  # 原版b*maxD*H*W # feaExtra版b * maxD/4 * HW/4
-        cost_volume = self.build_corr(left_fea, right_fea, max_disp=self.max_disp // self.fea_scale)
+        cost_volume = build_2Dcorr(left_fea, right_fea, max_disp=self.max_disp // self.fea_scale)
 
-        # encoder:resnet50:3-4-6-3
-        # enc1 = self.res_encoder1(hybrid_fea)  # 1/2
-        # enc2 = self.res_encoder2(enc1)  # 1/4
-        # enc3 = self.res_encoder3(enc2)  # 1/8
-        # enc4 = self.res_encoder4(enc3)  # 1/16
-        enc1 = self.encoder1(cost_volume)  # 256 * 1/2
-        enc2 = self.encoder2(enc1)  # 512 * 1/4
-        enc3 = self.encoder3(enc2)  # 1024 * 1/8
-        # enc4 = self.encoder4(enc3)  # 2048 * 1/16
+        enc1 = self.encoder1(cost_volume)  # 256 * 1/4
+        enc2 = self.encoder2(enc1)  # 512 * 1/8
+        enc3 = self.encoder3(enc2)  # 1024 * 1/16
+        enc4 = self.encoder4(enc3)  # 2048 * 1/32
 
-        # decoder:
-        # dec4 = torch.cat([dec4, enc4, e4], dim=1)
-        # dec3 = self.decoder4(dec4)  # 1024 * 1/8
-        # dec3 = torch.cat([dec3, enc3, e3], dim=1)
-        # dec2 = self.decoder3(dec3)  # 512 * 1/4
-        # dec2 = torch.cat([dec2, enc2, e2], dim=1)
-        # dec1 = self.decoder2(dec2)  # 256 * 1/2
-        # dec1 = torch.cat([dec1, enc1, e1], dim=1)
-        # output = self.decoder1(dec1)  # 128 * 1
+        # decoder_type='cat' or 'add' or 'none'
+        dec3 = self.decoder4(enc4)  # 1024 * 1/16
+        dec2 = self.decoder3(dec3)  # 512 * 1/8
+        dec1 = self.decoder2(dec2)  # 256 * 1/4
+        output = self.decoder1(dec1)  # 128 * 1/2
 
-        # if self.decoder_type='cat'or'add'
-        # dec = self.decoder4(enc4)  # 1024 * 1/8
-        dec2 = self.decoder3(enc3)  # 512 * 1/4
-        dec1 = self.decoder2(dec2)  # 256 * 1/2
-        output = self.decoder1(dec1)  # 128 * 1
-
-        # 这里对disp进行插值。
-
-        # 激活方式很重要, 如何激活得到[0,max_disp]范围的数值
+        # 如何得到logits?
+        # 激活方式很重要, 如何得到[0,max_disp]范围的数值
         disparity = self.last_conv(output)  # 64->32->1,最后一层没有bn和relu
         _, _, h, w = left_img.shape
         disparity = F.interpolate(disparity, [h, w], mode="bilinear", align_corners=True)
@@ -130,24 +105,6 @@ class edgestereo(nn.Module):
             disparity = disparity.squeeze(1)
 
         return disparity, left_edges[-1].squeeze(1)
-
-    # 2d cost volume 简洁高效版
-    def build_corr(self, img_left, img_right, max_disp=40, zero_volume=None):
-        B, C, H, W = img_left.shape
-        # if zero_volume is not None:
-        # tmp_zero_volume = zero_volume  # * 0.0
-        # print('tmp_zero_volume: ', mean)
-        # volume = tmp_zero_volume
-        # else:
-        volume = img_left.new_zeros([B, max_disp, H, W])
-        for i in range(max_disp):
-            if (i > 0) & (i < W):
-                volume[:, i, :, i:] = (img_left[:, :, :, i:] * img_right[:, :, :, : W - i]).mean(dim=1)
-            else:
-                volume[:, i, :, :] = (img_left[:, :, :, :] * img_right[:, :, :, :]).mean(dim=1)
-
-        volume = volume.contiguous()
-        return volume
 
 
 class HED(nn.Module):
