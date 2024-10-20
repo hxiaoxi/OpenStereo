@@ -12,7 +12,7 @@ data_cfg:
 #  test_list: datasets/KITTI12/kitti12_test.txt
 
   num_workers: 4
-  train_batch_size: 2
+  train_batch_size: 1
   val_batch_size: 1
   pin_memory: true
   shuffle: true
@@ -82,7 +82,7 @@ trainer_cfg:
   restore_hint: 0
   log_iter: 50 # iter
   save_every: 1 # epoch
-  val_every: 1 # epoch
+  val_every: 2 # epoch
   amp: false
   sync_bn: true
   fix_bn: false

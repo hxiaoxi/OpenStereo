@@ -9,7 +9,8 @@ from base_trainer import BaseTrainer
 from utils import get_attr_from, get_valid_args
 
 # from modeling.common.lamb import Lamb  # 优化器, 继承自Optimizer
-from .submodule import *
+from .costprocessor import *
+from .backbone import *
 
 
 class edgePSM(BaseModel):
@@ -20,8 +21,20 @@ class edgePSM(BaseModel):
         """
         self.Trainer = edgePSMNetTrainer
 
-    def build_cost_processor(self, cost_processor_cfg):
-        return PSMCostProcessor()
+    def build_backbone(self, backbone_cfg):
+        # """Get the backbone of the model."""
+        # if is_dict(backbone_cfg):
+        #     Backbone = get_attr_from([backbones], backbone_cfg['type'])
+        #     valid_args = get_valid_args(Backbone, backbone_cfg, ['type'])
+        #     return Backbone(**valid_args)
+        # if is_list(backbone_cfg):
+        #     Backbone = nn.ModuleList([self.get_backbone(cfg) for cfg in backbone_cfg])
+        #     return Backbone
+        # raise ValueError("Error type for -Backbone-Cfg-, supported: (A list of) dict.")
+        return EdgePSMBackbone()
+
+    # def build_cost_processor(self, cost_processor_cfg):
+        # return EdgePSMCostProcessor()
         # return super().build_cost_processor(cost_processor_cfg)
 
     def init_parameters(self):

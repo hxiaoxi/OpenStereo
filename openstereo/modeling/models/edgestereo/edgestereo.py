@@ -23,9 +23,6 @@ class edgestereo(nn.Module):
         for name, param in self.HEDNet.named_parameters():
             param.requires_grad = False
 
-        # max_disp需要根据分辨率同步缩放
-        # self.corr_layer = DispCorrLayer(max_disp=self.max_disp // self.fea_scale)
-
         self.inplanes = self.max_disp // self.fea_scale
         # self.encoder1 = Encoder(self.inplanes, 256)  # 1/8
         # self.encoder2 = Encoder(256, 512)  # 1/16
@@ -73,7 +70,6 @@ class edgestereo(nn.Module):
         right_fea = torch.cat([right_fea, right_cat_edge], dim=1)
 
         # 匹配特征, 计算cost volume
-        # corr_fea = self.corr_layer(left_fea, right_fea)  # 原版b*maxD*H*W # feaExtra版b * maxD/4 * HW/4
         cost_volume = build_2Dcorr(left_fea, right_fea, max_disp=self.max_disp // self.fea_scale)
 
         enc1 = self.encoder1(cost_volume)  # 256 * 1/4
