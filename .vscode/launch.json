@@ -18,6 +18,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Debug edgecoex_kitti in desktop",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstereo/main.py",
+            "args": [
+                "--config", "./configs/edgecoex/edgeCoExNet_kitti.yaml",
+                "--scope", "train",
+                "--no_distribute",
+                "--device", "cuda:0",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Debug edgepsm sceneflow in desktop",
             "type": "debugpy",
             "request": "launch",
