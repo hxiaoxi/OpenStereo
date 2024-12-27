@@ -49,6 +49,8 @@ class Feature(nn.Module):
         layers = [1, 2, 3, 5, 6]
         self.pre_trained = True
         model = timm.create_model(self.type, pretrained=self.pre_trained, features_only=True)
+        # model = timm.create_model('mobilenetv2_100', pretrained=True, features_only=True)
+        # d:/Code/mobilenetv2_100_ra.pth
         self.conv_stem = model.conv_stem
         self.bn1 = model.bn1
         self.block0 = torch.nn.Sequential(*model.blocks[0:layers[0]])
@@ -56,15 +58,15 @@ class Feature(nn.Module):
         self.block2 = torch.nn.Sequential(*model.blocks[layers[1]:layers[2]])
         self.block3 = torch.nn.Sequential(*model.blocks[layers[2]:layers[3]])
         self.block4 = torch.nn.Sequential(*model.blocks[layers[3]:layers[4]])
-        self.up = FeatUp()
+        # self.up = FeatUp() # 似乎没有用到
 
     def forward(self, x):
         x = self.bn1(self.conv_stem(x))
-        x2 = self.block0(x)
-        x4 = self.block1(x2)
+        x2 = self.block0(x) # 1/2
+        x4 = self.block1(x2) # 1/4
         x8 = self.block2(x4)
         x16 = self.block3(x8)
-        x32 = self.block4(x16)
+        x32 = self.block4(x16) # 1/32
         return [x4, x8, x16, x32]
 
 
@@ -96,18 +98,18 @@ class CoExBackbone(nn.Module):
         tgt_feature = self.feat(tgt_img)
         tgt_feature = self.up(tgt_feature)
 
-        stem_2x = self.stem_2(ref_img)
+        stem_2x = self.stem_2(ref_img) # 1/2和1/4,所以没有stem_3
         stem_4x = self.stem_4(stem_2x)
 
         stem_2y = self.stem_2(tgt_img)
         stem_4y = self.stem_4(stem_2y)
 
-        ref_feature[0] = torch.cat([ref_feature[0], stem_4x], dim=1)
+        ref_feature[0] = torch.cat([ref_feature[0], stem_4x], dim=1) # 拼接 H*2W
         tgt_feature[0] = torch.cat([tgt_feature[0], stem_4y], dim=1)
 
         return {
             "ref_feature": ref_feature,
             "tgt_feature": tgt_feature,
-            "stem_2x": stem_2x,
+            "stem_2x": stem_2x, # stem_2x是什么作用
             # "stem_2y": stem_2y
         }
