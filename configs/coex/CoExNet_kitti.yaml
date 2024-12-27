@@ -1,6 +1,6 @@
 data_cfg:
   name: KITTI2015
-  root: data/kitti15
+  root: D:/Code/datasets/kitti15
   train_list: datasets/KITTI15/kitti15_train200.txt
   val_list: datasets/KITTI15/kitti15_train200.txt
   test_list: datasets/KITTI15/kitti15_test.txt
@@ -10,8 +10,9 @@ data_cfg:
 #  val_list: datasets/KITTI12/kitti12_train194.txt
 #  test_list: datasets/KITTI12/kitti12_test.txt
   num_workers: 8
-  train_batch_size: 8 # 单卡训练！！！
-  val_batch_size: 10
+  train_batch_size: 2
+  # single gpu train!
+  val_batch_size: 2
   pin_memory: true
   shuffle: true
 

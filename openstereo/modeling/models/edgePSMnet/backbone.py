@@ -129,11 +129,11 @@ class EdgePSMBackbone(nn.Module):
 
         # 选择在图像输入时拼接边缘的策略
         ref_edge = self.edgeNet(ref_img)[-1] # 只取fuse边缘,分辨率为原图大小
-        tgt_img = self.edgeNet(tgt_img)[-1] 
+        tgt_edge = self.edgeNet(tgt_img)[-1] 
         # HED output: sigmoid([crop1, crop2, crop3, crop4, crop5, fuse])
 
         ref_img = torch.cat((ref_img,ref_edge),dim=1) # N*4*H*W
-        tgt_img = torch.cat((tgt_img,tgt_img),dim=1)
+        tgt_img = torch.cat((tgt_img,tgt_edge),dim=1)
 
         l_fms = self._forward(ref_img)
         r_fms = self._forward(tgt_img)

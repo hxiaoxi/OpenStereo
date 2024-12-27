@@ -11,3 +11,4 @@ from .sttr import STTRNet
 from .igev import IGEV
 from .edgestereo import EdgeStereo
 from .edgePSMnet import edgePSM
+from .edgeCoex import edgeCoex

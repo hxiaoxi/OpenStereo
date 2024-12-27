@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Debug coex_kitti in desktop",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstereo/main.py",
+            "args": [
+                "--config", "./configs/coex/CoExNet_kitti.yaml",
+                "--scope", "train",
+                "--no_distribute",
+                "--device", "cuda:0",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Debug edgepsm sceneflow in desktop",
             "type": "debugpy",
             "request": "launch",

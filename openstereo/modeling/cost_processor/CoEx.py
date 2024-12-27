@@ -13,18 +13,20 @@ class CostVolume(nn.Module):
         self.maxdisp = maxdisp + 1
         self.glue = glue
         self.group = group
-        self.unfold = nn.Unfold((1, maxdisp + 1), 1, 0, 1)
+        self.unfold = nn.Unfold((1, maxdisp + 1), 1, 0, 1) # maxd+1是为了包含视差0
         self.left_pad = nn.ZeroPad2d((maxdisp, 0, 0, 0))
 
     def forward(self, x, y, v=None):
-        b, c, h, w = x.shape
+        b, c, h, w = x.shape # 关键信息, 维度的排序是c优先
 
         unfolded_y = self.unfold(self.left_pad(y)).reshape(
-            b, self.group, c // self.group, self.maxdisp, h, w)
+            b, self.group, c // self.group, self.maxdisp, h, w) # 展开后元素变多了, b*c*(d+1)*H*W
         x = x.reshape(b, self.group, c // self.group, 1, h, w)
 
-        cost = (x * unfolded_y).sum(2)
+        cost = (x * unfolded_y).sum(2) # 余弦相似度, 通道c求和, 结果b*g*d*h*w
         cost = torch.flip(cost, [2])
+        # 通过翻转 cost 张量的第 2 维（即视差维度?）
+        # 使得高视差值对应的代价在前面，这通常是为了更符合某些立体匹配算法中的视差顺序。
 
         if self.glue:
             cross = self.unfold(self.left_pad(v)).reshape(
@@ -40,8 +42,8 @@ class AttentionCostVolume(nn.Module):
         super(AttentionCostVolume, self).__init__()
         self.costVolume = CostVolume(int(max_disparity // 4), False, head)
         self.conv = BasicConv(in_chan, hidden_chan, kernel_size=3, padding=1, stride=1)
-        self.desc = nn.Conv2d(hidden_chan, hidden_chan, kernel_size=1, padding=0, stride=1)
-        self.head = head
+        self.desc = nn.Conv2d(hidden_chan, hidden_chan, kernel_size=1, padding=0, stride=1) # 1x1卷积, 用于降维或重新描述特征
+        self.head = head # 头数, 通常与多头注意力机制相关
         self.weighted = weighted
         if weighted:
             self.weights = nn.Parameter(
@@ -64,7 +66,7 @@ class AttentionCostVolume(nn.Module):
 
         return cost
 
-
+# 注意力模块, sigmoid(img_L)得到权重, gce中会多次用到该类
 class channelAtt(nn.Module):
     def __init__(self, cv_chan, im_chan, D):
         super(channelAtt, self).__init__()
@@ -214,7 +216,6 @@ class Aggregation(nn.Module):
 
         cost_ = cost_feat[-1]
         for i in range(3):
-
             cost_ = self.conv_up[-i - 1](cost_)
             if cost_.shape != cost_feat[-i - 2].shape:
                 target_d, target_h, target_w = cost_feat[-i - 2].shape[-3:]
@@ -225,7 +226,7 @@ class Aggregation(nn.Module):
             if i == 2:
                 break
 
-            cost_ = torch.cat([cost_, cost_feat[-i - 2]], 1)
+            cost_ = torch.cat([cost_, cost_feat[-i - 2]], 1) # 
             cost_ = self.conv_skip[-i - 1](cost_)
             cost_ = self.conv_agg[-i - 1](cost_)
 

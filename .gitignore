@@ -294,5 +294,5 @@ output/
 /weights/
 /logs/
 /results/
-/data/
 /prediction/
+.vscode/launch.json
