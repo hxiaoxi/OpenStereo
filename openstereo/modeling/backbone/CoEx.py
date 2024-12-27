@@ -48,9 +48,19 @@ class Feature(nn.Module):
         self.type = 'mobilenetv2_100'
         layers = [1, 2, 3, 5, 6]
         self.pre_trained = True
-        model = timm.create_model(self.type, pretrained=self.pre_trained, features_only=True)
+
+        # model = timm.create_model(self.type, pretrained=self.pre_trained, features_only=True)
         # model = timm.create_model('mobilenetv2_100', pretrained=True, features_only=True)
         # d:/Code/mobilenetv2_100_ra.pth
+
+        # add
+        # pretrained_cfg = timm.create_model(self.type, pretrained=self.pre_trained, features_only=True).default_cfg
+        # pretrained_pt = r'/home/huangjx/Documents/OpenStereo/mobilenetv2_100_ra_feaonly.pt'
+        pretrained_pt = r'D:/Code/OpenStereo/mobilenetv2_100_ra_feaonly.pt'
+
+        model = timm.create_model(self.type, pretrained=self.pre_trained, features_only=True,checkpoint_path=pretrained_pt)
+
+
         self.conv_stem = model.conv_stem
         self.bn1 = model.bn1
         self.block0 = torch.nn.Sequential(*model.blocks[0:layers[0]])
