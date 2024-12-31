@@ -296,3 +296,5 @@ output/
 /results/
 /prediction/
 .vscode/launch.json
+*.pt
+*.pth

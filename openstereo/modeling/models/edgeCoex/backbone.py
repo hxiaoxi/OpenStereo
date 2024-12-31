@@ -91,10 +91,11 @@ class EdgeCoexBackbone(nn.Module):
             nn.ReLU()
         )
 
-        # 导入边缘检测模块
+        # 边缘检测
         self.edgeNet = edgeNet()
-        # 导入模型参数并固定
         # self.edgeNet.load_checkpoint(path="/home/huangjx/Documents/OpenStereo/hed_checkpoint.pt") # linux位置
+        # self.edgeNet.load_checkpoint(path="/home/huangjx/Documents/OpenStereo/rcf_checkpoint.pth") # linux位置
+        # self.edgeNet.load_checkpoint(path="D:/Code/OpenStereo/hed_checkpoint.pt") # windows位置
         self.edgeNet.load_checkpoint(path="D:/Code/OpenStereo/rcf_checkpoint.pth") # windows位置
         for name, param in self.edgeNet.named_parameters():
             param.requires_grad = False
@@ -120,24 +121,28 @@ class EdgeCoexBackbone(nn.Module):
         # results = [out1, out2, out3, out4, out5, fuse]
         # results = [torch.sigmoid(r) for r in results]
         # ref_edge = self.edgeNet(ref_img)[-1]
-        ref_edge = self.edgeNet(ref_img) # 1Resolution
+        ref_edge = self.edgeNet(ref_img) # 1Resolution,list
         tgt_edge = self.edgeNet(tgt_img)
+        _,_,h,w = ref_feature[0].shape
+        ref_edge = torch.cat(ref_edge,dim=1)
+        tgt_edge = torch.cat(tgt_edge,dim=1)
         ref_edge = F.interpolate(
-            ref_edge, (ref_feature[0].size()[2], ref_feature[0].size()[3]),
+            ref_edge, (h,w),
             mode='bilinear', align_corners=True
         )
         tgt_edge = F.interpolate(
-            tgt_edge, (tgt_feature[0].size()[2], tgt_feature[0].size()[3]),
+            tgt_edge, (h,w),
             mode='bilinear', align_corners=True
         )
-        ref_feature[0] = torch.cat([ref_feature[0], ref_edge], dim=1) # 拼接 b*（c1+c2)*H*2W
-        tgt_feature[0] = torch.cat([tgt_feature[0], tgt_edge], dim=1)
+        # ref_feature[0] = torch.cat([ref_feature[0], ref_edge], dim=1) # 拼接 b*（c1+c2)*H*2W
+        # tgt_feature[0] = torch.cat([tgt_feature[0], tgt_edge], dim=1)
 
         return {
             "ref_feature": ref_feature,
             "tgt_feature": tgt_feature,
             "stem_2x": stem_2x, # stem_2x是什么作用
             "ref_edge": ref_edge,
+            "tgt_edge": tgt_edge,
             # "tgt_edge": tgt_edge,
             # "stem_2y": stem_2y
         }

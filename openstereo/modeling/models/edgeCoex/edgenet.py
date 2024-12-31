@@ -74,7 +74,7 @@ class HED(nn.Module):
 
             new_state_dict = {}
             # print(checkpoint['net'].keys())
-            for key, value in checkpoint["net"].items():
+            for key, value in checkpoint.items():
                 # 去掉参数名中的 'module.' 前缀
                 new_key = key.replace("module.", "")
                 new_state_dict[new_key] = value
@@ -327,6 +327,20 @@ class RCF(nn.Module):
         assert(img_h <= h and img_w <= w)
         data = data[:, :, crop_h:crop_h + img_h, crop_w:crop_w + img_w]
         return data
+
+    def load_checkpoint(self, path="./checkpoint.pth"):
+        """Load previous pre-trained checkpoint.
+        :param path: Path of checkpoint file.
+        :return:     Checkpoint epoch number.
+        """
+        if os.path.isfile(path):
+            print("=> Loading checkpoint {}...".format(path))
+            checkpoint = torch.load(path)
+            self.load_state_dict(checkpoint)
+            # self.load_state_dict(checkpoint, strict=False)  # 模型缺少插值权重weight_deconv
+            print("=> checkpoint loaded")
+        else:
+            raise ValueError("=> No checkpoint found at {}.".format(path))
 
     def forward(self, x):
         img_h, img_w = x.shape[2], x.shape[3]

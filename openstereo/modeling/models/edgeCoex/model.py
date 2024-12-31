@@ -11,28 +11,23 @@ from utils import get_attr_from, get_valid_args
 # from modeling.common.lamb import Lamb  # 优化器, 继承自Optimizer
 from .costprocessor import *
 from .backbone import *
-
+from .dispprocessor import *
 
 class edgeCoex(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def build_backbone(self, backbone_cfg):
-        # """Get the backbone of the model."""
-        # if is_dict(backbone_cfg):
-        #     Backbone = get_attr_from([backbones], backbone_cfg['type'])
-        #     valid_args = get_valid_args(Backbone, backbone_cfg, ['type'])
-            # return Backbone(**valid_args)
-        # if is_list(backbone_cfg):
-        #     Backbone = nn.ModuleList([self.get_backbone(cfg) for cfg in backbone_cfg])
-        #     return Backbone
-        # raise ValueError("Error type for -Backbone-Cfg-, supported: (A list of) dict.")
         valid_args = get_valid_args(EdgeCoexBackbone, backbone_cfg, ['type']) # 有默认值
         return EdgeCoexBackbone(**valid_args)
 
     def build_cost_processor(self, cost_processor_cfg):
-        valid_args = get_valid_args(EdgeCoexProcessor, cost_processor_cfg, ['type']) # 有默认值
+        valid_args = get_valid_args(EdgeCoexProcessor, cost_processor_cfg, ['type']) 
         return EdgeCoexProcessor(**valid_args)
+    
+    def build_disp_processor(self, disp_processor_cfg):
+        valid_args = get_valid_args(EdgeCoExDispProcessor, disp_processor_cfg, ['type']) 
+        return EdgeCoExDispProcessor(**valid_args)
 
 
     # backbone modeling/backbone/CoEx.py

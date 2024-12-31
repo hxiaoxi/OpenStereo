@@ -130,6 +130,7 @@ class Aggregation(nn.Module):
             self.channelAttStem = channelAtt(
                 8,
                 2 * im_chans[1] + spixel_branch_channels[1],
+                # 2 * im_chans[1] + spixel_branch_channels[1] + 6,
                 self.D,
             )
             self.channelAtt = nn.ModuleList()
@@ -291,10 +292,12 @@ class EdgeCoexProcessor(nn.Module):
         )
 
     def forward(self, inputs):
-        x = inputs['ref_feature'] # [x4+x4'+edge, x8, x16, x32]
+        x = inputs['ref_feature'] # [x4, x8, x16, x32]
         y = inputs['tgt_feature']
-        # edge_x = inputs['ref_edge']
-        cost = (self.cost_volume(x[0], y[0]))[:, :, :-1, :, :]
+        edge_x = inputs['ref_edge']
+        edge_y = inputs['tgt_edge']
+        cost = (self.cost_volume(torch.cat([x[0], edge_x], dim=1),
+                                  torch.cat([y[0], edge_y], dim=1)))[:, :, :-1, :, :]
         cost = self.cost_agg(x, cost)
         # cost = self.cost_agg(x, edge_x, cost)
         return {
