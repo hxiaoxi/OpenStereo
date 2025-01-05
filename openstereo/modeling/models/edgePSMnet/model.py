@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import time
 # import torch.nn.functional as F
 # import torch.optim as optim
 # from .edgestereo import edgestereo
@@ -37,8 +37,19 @@ class edgePSM(BaseModel):
         # return EdgePSMCostProcessor()
         # return super().build_cost_processor(cost_processor_cfg)
 
-    def init_parameters(self):
-        pass
+    # def init_parameters(self):
+    #     pass
+
+    def forward_step(self, batch_data, device=None):
+        T1 = time.clock()
+        batch_inputs = self.prepare_inputs(batch_data, device)
+        T2 =time.clock()
+        print('程序运行时间:%s毫秒' % ((T2 - T1)*1000))
+        outputs = self.forward(batch_inputs)
+        T3 =time.clock()
+        print('程序运行时间:%s毫秒' % ((T3 - T2)*1000))
+        training_disp, visual_summary = outputs['training_disp'], outputs['visual_summary']
+        return training_disp, visual_summary
 
     # backbone modeling/backbone/PSMNet.py
     # cost processor modeling/cost_processor/PSMNet.py

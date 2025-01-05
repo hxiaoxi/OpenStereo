@@ -36,6 +36,8 @@ scp hed_checkpoint.pt huangjx@172.18.196.173:/home/huangjx/Documents/OpenStereo
 上传文件夹
 scp -r floder_name huangjx@172.18.196.173:/home/huangjx/Downloads/dataset
 
+scp -r floder_name huangjx@172.18.196.173:/home/huangjx/Documents/OpenStereo
+
 下载
 scp remoteuser@remotehost:/home/remoteuser/remotefile.txt /本地路径/
 

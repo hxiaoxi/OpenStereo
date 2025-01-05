@@ -63,11 +63,11 @@ class Feature(nn.Module):
 
         self.conv_stem = model.conv_stem
         self.bn1 = model.bn1
-        self.block0 = torch.nn.Sequential(*model.blocks[0:layers[0]])
-        self.block1 = torch.nn.Sequential(*model.blocks[layers[0]:layers[1]])
-        self.block2 = torch.nn.Sequential(*model.blocks[layers[1]:layers[2]])
-        self.block3 = torch.nn.Sequential(*model.blocks[layers[2]:layers[3]])
-        self.block4 = torch.nn.Sequential(*model.blocks[layers[3]:layers[4]])
+        self.block0 = torch.nn.Sequential(*model.blocks[0:layers[0]]) # [0:1]
+        self.block1 = torch.nn.Sequential(*model.blocks[layers[0]:layers[1]]) # [1:2]
+        self.block2 = torch.nn.Sequential(*model.blocks[layers[1]:layers[2]]) # [2:3]
+        self.block3 = torch.nn.Sequential(*model.blocks[layers[2]:layers[3]]) # [3:5]
+        self.block4 = torch.nn.Sequential(*model.blocks[layers[3]:layers[4]]) # [5:6]
         # self.up = FeatUp() # 似乎没有用到
 
     def forward(self, x):

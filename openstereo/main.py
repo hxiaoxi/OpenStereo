@@ -14,7 +14,7 @@ def arg_parse():
     parser = argparse.ArgumentParser(description='Main program for OpenStereo.')
     parser.add_argument('--config', type=str, default='configs/psmnet/PSMNet_sceneflow.yaml',
                         help="path of config file")
-    parser.add_argument('--scope', default='train', choices=['train', 'val', 'test_kitti'],
+    parser.add_argument('--scope', default='train', choices=['train', 'val', 'test_kitti','test'],
                         help="choose train or test scope")
     parser.add_argument('--master_addr', type=str, default='localhost', help="master address")
     parser.add_argument('--master_port', type=str, default='12355', help="master port")
@@ -99,7 +99,7 @@ def worker(rank, world_size, opt, cfgs):
         model_trainer.train_model()
     elif scope == 'val':
         model_trainer.val_epoch()
-    elif scope == 'test_kitti':
+    elif scope == 'test_kitti' or scope == 'test':
         # train_loader and val_loader are built in model_trainer
         # build test loader here since it is not used in training
         model_trainer.test_loader = model_trainer.get_data_loader(model_trainer.data_cfg, 'test')
